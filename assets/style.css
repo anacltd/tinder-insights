@@ -1,0 +1,78 @@
+body {
+    font-family: "Raleway", sans-serif;
+}
+
+.fire-emoji {
+    font-size: 64px;
+    margin: 4px auto;
+    text-align: center;
+    max-width: 384px;
+}
+
+.header-title {
+    font-size: 48px;
+    font-family: "Raleway", sans-serif;
+    color: #fe3c72;
+    margin: 4px auto;
+    text-align: center;
+    max-width: 384px;
+}
+
+.header-description {
+    font-family: "Raleway", sans-serif;
+    color: #df4723;
+    margin: 4px auto;
+    text-align: center;
+    max-width: 384px;
+}
+
+.wrapper {
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 1024px;
+    padding-right: 10px;
+    padding-left: 10px;
+    margin-top: 32px;
+}
+
+.card {
+    margin-bottom: 24px;
+    box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.menu {
+    font-family: "Raleway", sans-serif;
+    height: 112px;
+    width: 912px;
+    display: flex;
+    justify-content: space-evenly;
+    padding-top: 120px;
+    margin: -40px auto 0 auto;
+    background-color: #FFFFFF;
+    box-shadow: 0 4px 6px 0 rgba(0, 0, 0, 0.18);
+    color: #fe3c72;
+}
+
+.Select-control {
+    font-family: "Raleway", sans-serif;
+    width: 256px;
+    height: 48px;
+}
+
+.Select--single > .Select-control .Select-value, .Select-placeholder {
+    font-family: "Raleway", sans-serif;
+    line-height: 48px;
+}
+
+.Select--multi .Select-value-label {
+    font-family: "Raleway", sans-serif;
+    line-height: 32px;
+}
+
+.menu-title {
+    font-family: "Raleway", sans-serif;
+    margin-bottom: 6px;
+    font-weight: bold;
+    color: #df4723;
+
+}
