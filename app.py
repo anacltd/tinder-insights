@@ -8,7 +8,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from dash.dependencies import Input, Output, State
+from pandas import DataFrame
 
 FRENCH_VERSION = {'app_opens': "Application ouverte",
                   'swipes_likes': "Swipes à droite",
@@ -21,7 +23,16 @@ FRENCH_VERSION = {'app_opens': "Application ouverte",
 COLORS = ["#fd297b", "#ff5864", "#ff655b", "#ff7854"]
 
 
-def fill_missing_dates(df):
+def fill_missing_dates(df: DataFrame) -> DataFrame:
+    """
+    Generate missing dates and data to avoid weird curve in the graph (happens when the app has been uninstalled or
+    hasn't been opened in a while)
+    Args:
+        df: the original dataframe (having some potentially missing data)
+
+    Returns:
+        a dataframe without any missing dates
+    """
     df = df.set_index(pd.to_datetime(df.index).date)
     date_from = df.index[0]
     date_to = df.index[-1]
@@ -34,11 +45,28 @@ def fill_missing_dates(df):
     return new_df.sort_index()
 
 
-def rename_columns(df):
+def rename_columns(df: DataFrame) -> DataFrame:
+    """
+    Rename the columns with clean French names
+    #TODO: add an English version and a dropdown button to select it
+    Args:
+        df: the original dataframe
+
+    Returns:
+        the dataframe with new columns names
+    """
     return df.rename(columns=FRENCH_VERSION)
 
 
-def process_df(df):
+def process_df(df: DataFrame) -> DataFrame:
+    """
+    Transpose, rename columns and add potentially missing data in a dataframe
+    Args:
+        df: the original, "raw" dataframe
+
+    Returns:
+        the processed dataframe
+    """
     df = df.transpose()
     df.drop(columns=["idfa", "advertising_id"], inplace=True)
     df = fill_missing_dates(df)
@@ -53,8 +81,7 @@ except FileNotFoundError as e:
     print("Le fichier data.json n'est pas dans le répertoire")
     sys.exit(1)
 
-df = pd.DataFrame.from_dict(data.get("Usage"), orient="index")
-df = process_df(df)
+df = process_df(pd.DataFrame.from_dict(data.get("Usage"), orient="index"))
 drop_down_labels = [{"label": s, "value": s} for s in list(df.columns)]
 external_stylesheets = [
     {
@@ -122,12 +149,28 @@ app.layout = html.Div(
     [State("graph", "children")]
 )
 def update_graph(value, start_date, end_date, children):
+    """
+    Based on the callback from the drop-down button, returns the wanted graphs
+    """
     start = datetime.strptime(start_date, "%Y-%m-%d").date()
     end = datetime.strptime(end_date, "%Y-%m-%d").date()
+    swipes_nb = sum(df["Swipes à droite"] + df["Swipes à gauche"])
     filtered = df[start:end]
     if value:
+        val = [swipes_nb - sum(df[value]), sum(df[value])] if 'Matches' not in value else [sum(df["Swipes à droite"]),
+                                                                                           sum(df[value])]
+        # Tinder-themed CSS colors: salmon fushia indianred lightcoral
+        fig = go.Figure(data=[go.Pie(labels=[f"Swipes à {'gauche' if 'droite' in value else 'droite'}", value],
+                                     values=val,
+                                     pull=[0, 0.25],
+                                     textinfo='label+percent',
+                                     showlegend=False,
+                                     hoverinfo='value',
+                                     marker=dict(colors=['coral', 'palevioletred'])
+                                     )])
         if children:
-            children[0]["props"]["figure"] = {
+            children[0]["props"]["figure"] = fig
+            children[1]["props"]["figure"] = {
                 "data": [
                         {
                             "x": filtered.index.to_series(),
@@ -139,6 +182,11 @@ def update_graph(value, start_date, end_date, children):
                            "colorway": [random.choice(COLORS)]},
                 }
         else:
+            children.append(
+                dcc.Graph(
+                    figure=fig
+                )
+            )
             children.append(
                 dcc.Graph(
                     id="matches",

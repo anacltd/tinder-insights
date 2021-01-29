@@ -1,2 +1,5 @@
 .idea
 venv
+assets/data.json
+data.json
+wordcloud.png
