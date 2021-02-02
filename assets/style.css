@@ -26,6 +26,14 @@ body {
     max-width: 384px;
 }
 
+.number {
+    display: flex;
+    font-family: "Raleway", sans-serif;
+    text-align: center;
+    font-size: 100px;
+    text-shadow: 1px 1px 1px salmon, 3px 3px 1px salmon;
+}
+
 .wrapper {
     margin-right: auto;
     margin-left: auto;
@@ -74,5 +82,25 @@ body {
     margin-bottom: 6px;
     font-weight: bold;
     color: #df4723;
+}
 
+
+.subnumber {
+    font-family: "Raleway", sans-serif;
+    height: 112px;
+    width: 340px;
+    display: flex;
+    padding-top: 20px;
+    margin: -40px auto 0 auto;
+}
+
+.row {
+    font-family: "Raleway", sans-serif;
+    height: 112px;
+    padding-left: 100px;
+    width: 800px;
+    display: flex;
+    justify-content: space-between;
+    padding-top: 20px;
+    margin: -40px auto 0 auto;
 }

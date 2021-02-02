@@ -1,5 +1,6 @@
 import json
 import random
+import re
 import sys
 from datetime import datetime
 
@@ -21,6 +22,7 @@ FRENCH_VERSION = {'app_opens': "Application ouverte",
                   'advertising_id': "advertising_id",
                   'idfa': "idfa"}
 COLORS = ["#fd297b", "#ff5864", "#ff655b", "#ff7854"]
+NETWORKS_RE = re.compile(r"\b(insta(gram)?|snap(chat)?|whatsapp)\b", re.IGNORECASE)
 
 
 def fill_missing_dates(df: DataFrame) -> DataFrame:
@@ -74,6 +76,26 @@ def process_df(df: DataFrame) -> DataFrame:
     return df
 
 
+def get_social_media_first_mention(l):
+    """
+    Get the first mention of another social media (snapchat, instagram or whatsapp).
+    Args:
+        l: the list of messages
+
+    Returns:
+        The average number of messages before the first other social media mention + the percentage of convos in which
+        another social media was mentioned
+
+    """
+    i = []
+    for d in l:
+        for m in d.get("messages"):
+            if re.search(NETWORKS_RE, m.get("message")):
+                i.append(d.get("messages").index(m) + 1)
+                break
+    return sum(i) / len(i), (len(i) / len(l)) * 100
+
+
 try:
     with open("data.json", encoding="utf-8") as json_file:
         data = json.load(json_file)
@@ -81,8 +103,11 @@ except FileNotFoundError as e:
     print("Le fichier data.json n'est pas dans le répertoire")
     sys.exit(1)
 
+# TODO: add a component to load the json file within the dashboard
 df = process_df(pd.DataFrame.from_dict(data.get("Usage"), orient="index"))
-drop_down_labels = [{"label": s, "value": s} for s in list(df.columns)]
+drop_down_labels = [{"label": s, "value": s} for s in list(df.columns) + ["Statistiques messages"]]
+message_social_media, message_percentage = get_social_media_first_mention(data.get("Messages"))
+
 external_stylesheets = [
     {
         "href": "https://fonts.googleapis.com/css2?family=Raleway&display=swap",
@@ -105,7 +130,7 @@ app.layout = html.Div(
             children=[
                 html.Div(
                     children=[
-                        html.Div(children="Type", className="menu-title"),
+                        html.Div(children="Type d'analyse", className="menu-title"),
                         dcc.Dropdown(
                             id="type-filter",
                             options=drop_down_labels,
@@ -120,7 +145,7 @@ app.layout = html.Div(
                         html.Div(
                             children="Dates",
                             className="menu-title"
-                            ),
+                        ),
                         dcc.DatePickerRange(
                             id="date-range",
                             min_date_allowed=df.index.min(),
@@ -156,55 +181,64 @@ def update_graph(value, start_date, end_date, children):
     end = datetime.strptime(end_date, "%Y-%m-%d").date()
     swipes_nb = sum(df["Swipes à droite"] + df["Swipes à gauche"])
     filtered = df[start:end]
+    card, fig, graph = None, None, None
     if value:
-        val = [swipes_nb - sum(df[value]), sum(df[value])] if 'Matches' not in value else [sum(df["Swipes à droite"]),
-                                                                                           sum(df[value])]
-        # Tinder-themed CSS colors: salmon fushia indianred lightcoral
-        fig = go.Figure(data=[go.Pie(labels=[f"Swipes à {'gauche' if 'droite' in value else 'droite'}", value],
-                                     values=val,
-                                     pull=[0, 0.25],
-                                     textinfo='label+percent',
-                                     showlegend=False,
-                                     hoverinfo='value',
-                                     marker=dict(colors=['coral', 'palevioletred'])
-                                     )])
-        if children:
-            children[0]["props"]["figure"] = fig
-            children[1]["props"]["figure"] = {
-                "data": [
-                        {
-                            "x": filtered.index.to_series(),
-                            "y": filtered[value],
-                            "type": "lines",
-                        },
-                    ],
-                "layout": {"title": value,
-                           "colorway": [random.choice(COLORS)]},
-                }
+        if value != "Statistiques messages":
+            if 'Matches' in value:
+                val = [sum(df["Swipes à droite"]), sum(df[value])]
+                labels = ["Swipes à droite", value]
+            elif 'Message' in value:
+                val = [sum(df['Matches']), sum(df[value])]
+                labels = ["Matches", value]
+            else:
+                val = [swipes_nb - sum(df[value]), sum(df[value])]
+                labels = [f"Swipes à {'gauche' if 'droite' in value else 'droite'}", value]
+            # Tinder-themed CSS colors: salmon fushia indianred lightcoral
+            fig = go.Figure(data=[go.Pie(labels=labels,
+                                         values=val,
+                                         pull=[0, 0.25],
+                                         textinfo='label+percent',
+                                         showlegend=False,
+                                         hoverinfo='value',
+                                         marker=dict(colors=['coral', 'palevioletred'])
+                                         )])
+            graph = {"data": [{"x": filtered.index.to_series(), "y": filtered[value], "type": "lines"}],
+                     "layout": {"title": value, "colorway": [random.choice(COLORS)]}}
         else:
-            children.append(
-                dcc.Graph(
-                    figure=fig
-                )
-            )
-            children.append(
-                dcc.Graph(
-                    id="matches",
-                    figure={
-                        "data": [
-                            {
-                                "x": filtered.index.to_series(),
-                                "y": filtered[value],
-                                "type": "lines",
-                            },
-                        ],
-                        "layout": {"title": value,
-                                   "colorway": [random.choice(COLORS)]},
-                    },
-                )
-            )
+            card = html.Div(
+                children=[
+                    html.Div(
+                        children=[
+                            html.H1(children=f"{int(message_social_media)}",
+                                    className="number"),
+                            html.P(
+                                children="Nombre de messages que vous avez (en moyenne) envoyé avant de mentionner un "
+                                         "autre réseau social",
+                                className="subnumber"
+                            ),
+                        ]
+                    ),
+                    html.Div(
+                        children=[
+                            html.H1(children=f"{int(message_percentage)} %",
+                                    className="number"),
+                            html.P(
+                                children="Pourcentage de conversations dans lesquelles un autre réseau social est"
+                                         " mentionné",
+                                className="subnumber"
+                            ),
+                        ]
+                    )], className="row")
+        if children:
+            children = []
+        if card:
+            children.append(card)
+        if fig:
+            children.append(dcc.Graph(figure=fig))
+        if graph:
+            children.append(dcc.Graph(id="matches", figure=graph))
     return children
 
 
 if __name__ == "__main__":
-    app.run_server()
+    app.run_server(debug=True)
