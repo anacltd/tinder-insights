@@ -76,7 +76,7 @@ def process_df(df: DataFrame) -> DataFrame:
     return df
 
 
-def get_social_media_first_mention(l):
+def get_social_media_first_mention(l: list) -> tuple:
     """
     Get the first mention of another social media (snapchat, instagram or whatsapp).
     Args:
@@ -93,11 +93,11 @@ def get_social_media_first_mention(l):
             if re.search(NETWORKS_RE, m.get("message")):
                 i.append(d.get("messages").index(m) + 1)
                 break
-    return sum(i) / len(i), (len(i) / len(l)) * 100
+    return int(sum(i) / len(i)), int((len(i) / len(l)) * 100)
 
 
 try:
-    with open("data.json", encoding="utf-8") as json_file:
+    with open("assets/data.json", encoding="utf-8") as json_file:
         data = json.load(json_file)
 except FileNotFoundError as e:
     print("Le fichier data.json n'est pas dans le répertoire")
@@ -107,7 +107,6 @@ except FileNotFoundError as e:
 df = process_df(pd.DataFrame.from_dict(data.get("Usage"), orient="index"))
 drop_down_labels = [{"label": s, "value": s} for s in list(df.columns) + ["Statistiques messages"]]
 message_social_media, message_percentage = get_social_media_first_mention(data.get("Messages"))
-
 external_stylesheets = [
     {
         "href": "https://fonts.googleapis.com/css2?family=Raleway&display=swap",
@@ -132,6 +131,7 @@ app.layout = html.Div(
                     children=[
                         html.Div(children="Type d'analyse", className="menu-title"),
                         dcc.Dropdown(
+                            placeholder="Choisir...",
                             id="type-filter",
                             options=drop_down_labels,
                             clearable=False,
@@ -179,21 +179,34 @@ def update_graph(value, start_date, end_date, children):
     """
     start = datetime.strptime(start_date, "%Y-%m-%d").date()
     end = datetime.strptime(end_date, "%Y-%m-%d").date()
-    swipes_nb = sum(df["Swipes à droite"] + df["Swipes à gauche"])
     filtered = df[start:end]
+    swipes_nb = sum(filtered["Swipes à droite"] + filtered["Swipes à gauche"])
     card, fig, graph = None, None, None
     if value:
-        if value != "Statistiques messages":
+        if value not in ["Statistiques messages", "Application ouverte"]:
             if 'Matches' in value:
-                val = [sum(df["Swipes à droite"]), sum(df[value])]
+                val = [sum(filtered["Swipes à droite"]), sum(filtered[value])]
                 labels = ["Swipes à droite", value]
             elif 'Message' in value:
-                val = [sum(df['Matches']), sum(df[value])]
+                val = [sum(filtered['Matches']), sum(filtered[value])]
                 labels = ["Matches", value]
             else:
-                val = [swipes_nb - sum(df[value]), sum(df[value])]
+                val = [swipes_nb - sum(filtered[value]), sum(filtered[value])]
                 labels = [f"Swipes à {'gauche' if 'droite' in value else 'droite'}", value]
             # Tinder-themed CSS colors: salmon fushia indianred lightcoral
+            card = html.Div(
+                children=[
+                    html.Div(
+                        children=[
+                            html.H1(children=f"{int(sum(filtered[value]))}",
+                                    className="number"),
+                            html.P(
+                                children=f"Nombre moyen de {'swipes à ' + value if 'swipes' in value else value.lower()}",
+                                className="subnumber"
+                            ),
+                        ]
+                    ),
+                ])
             fig = go.Figure(data=[go.Pie(labels=labels,
                                          values=val,
                                          pull=[0, 0.25],
@@ -204,7 +217,7 @@ def update_graph(value, start_date, end_date, children):
                                          )])
             graph = {"data": [{"x": filtered.index.to_series(), "y": filtered[value], "type": "lines"}],
                      "layout": {"title": value, "colorway": [random.choice(COLORS)]}}
-        else:
+        elif value == "Statistiques messages":
             card = html.Div(
                 children=[
                     html.Div(
@@ -229,6 +242,30 @@ def update_graph(value, start_date, end_date, children):
                             ),
                         ]
                     )], className="row")
+        else:
+            stats = int((sum(filtered["Application ouverte"]) * 100) / swipes_nb)
+            card = html.Div(
+                children=[
+                    html.Div(
+                        children=[
+                            html.H1(children=f"{int(filtered['Application ouverte'].mean(axis=0))}",
+                                    className="number"),
+                            html.P(
+                                children="Nombre moyen de lancement de l'application par jour",
+                                className="subnumber"
+                            ),
+                        ]
+                    ),
+                    html.Div(
+                        children=[
+                            html.H1(children=f"{stats}",
+                                    className="number"),
+                            html.P(
+                                children="Nombre moyen de swipes par lancement de l'application",
+                                className="subnumber"
+                            ),
+                        ]
+                    )], className="row")
         if children:
             children = []
         if card:
@@ -241,4 +278,4 @@ def update_graph(value, start_date, end_date, children):
 
 
 if __name__ == "__main__":
-    app.run_server(debug=True)
+    app.run_server()
