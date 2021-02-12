@@ -42,6 +42,8 @@ def fill_missing_dates(df: DataFrame) -> DataFrame:
     missing_dates = [d for d in list(dates) if d not in list(df.index)]
     missing_data = {col: np.zeros(len(missing_dates)) for col in df.columns}
     sub_df = pd.DataFrame(missing_data, index=missing_dates, columns=df.columns)
+    if sub_df.empty:
+        return df.sort_index()
     sub_df = sub_df.set_index(pd.to_datetime(pd.Series(sub_df.index.date)))
     new_df = pd.concat([df, sub_df])
     return new_df.sort_index()
@@ -97,7 +99,7 @@ def get_social_media_first_mention(l: list) -> tuple:
 
 
 try:
-    with open("assets/data.json", encoding="utf-8") as json_file:
+    with open("data.json", encoding="utf-8") as json_file:
         data = json.load(json_file)
 except FileNotFoundError as e:
     print("Le fichier data.json n'est pas dans le répertoire")
